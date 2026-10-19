@@ -99,7 +99,7 @@
           <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
         </button>
 
-        <button onclick="openAppModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[#FAF8F5] font-medium text-xs sm:text-sm shadow-sm transition-all">
+        <button onclick="requestAdminAndOpenAdd()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[#FAF8F5] font-medium text-xs sm:text-sm shadow-sm transition-all">
           <i data-lucide="plus" class="w-4 h-4"></i>
           <span>Add Web App</span>
         </button>
@@ -164,6 +164,30 @@
       </div>
     </div>
   </footer>
+
+  <!-- Admin Login Modal -->
+  <div id="authModal" class="fixed inset-0 z-50 hidden bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#FAF8F5] border border-[#E6E1DA] rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[#E6E1DA] pb-3">
+        <h3 class="font-display font-bold text-base text-zinc-900">Admin Authentication</h3>
+        <button onclick="closeAuthModal()" class="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#EFECE6]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-zinc-600 leading-relaxed">
+        Enter your Master Password to modify or add web applications.
+      </p>
+      <form onsubmit="verifyAdmin(event)" class="space-y-3">
+        <div>
+          <input id="adminPasswordInput" type="password" required placeholder="Enter master password..."
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm outline-none" />
+        </div>
+        <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-zinc-900 text-[#FAF8F5] text-xs font-medium hover:bg-zinc-800 transition-colors">
+          Verify & Continue
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Add / Edit Web App Modal -->
   <div id="appModal" class="fixed inset-0 z-50 hidden bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
@@ -250,10 +274,16 @@
 
   <script>
     /* ==========================================================
-       SUPABASE CONFIGURATION (আপনার প্রোভাইড করা তথ্য সংযুক্ত)
+       SUPABASE & ADMIN CONFIGURATION
        ========================================================== */
     const SUPABASE_URL = 'https://xcalwcbvbymlyycakvqb.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_uj4_cNySYz5Kk37I61CWdQ_vL6gat1d';
+    
+    // Updated Master Password
+    const ADMIN_PASSWORD = 'nasim2027webhub@@@';
+
+    let isAdminLoggedIn = false;
+    let pendingAction = null; // 'add' or { type: 'edit', id } or { type: 'delete', id }
 
     let supabaseClient = null;
     try {
@@ -268,7 +298,6 @@
     let activeCategory = 'All';
     let searchQuery = '';
 
-    // Core 4 apps fallback
     const FALLBACK_APPS = [
       { id: 'app-vaccine', title: 'Vaccine Tracker & Schedule', url: 'https://vaccine.iamnasim.com', domain: 'vaccine.iamnasim.com', category: 'Health & Family', description: 'Immunization timeline, child vaccination reminders, dose history, and family health tracker.', metric: 'EPI & Child Schedule', preview_type: 'vaccine' },
       { id: 'app-bill', title: 'Electricity Bill Calculator', url: 'https://bill.iamnasim.com', domain: 'bill.iamnasim.com', category: 'Utility & Finance', description: 'Slab-wise tariff breakdown, kWh consumption analyzer, demand charge & VAT estimator.', metric: 'LT-A Residential Tariff', preview_type: 'bill' },
@@ -426,8 +455,8 @@
           </div>
           <div class="px-5 pb-5 pt-3 border-t border-[#F3EFEA] flex items-center justify-between gap-2">
             <div class="flex items-center gap-1">
-              <button onclick="editApp('${app.id}')" title="Edit App" class="p-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#F3EFEA] transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-              <button onclick="deleteApp('${app.id}')" title="Remove App" class="p-2 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+              <button onclick="requestAdminAndEdit('${app.id}')" title="Edit App" class="p-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#F3EFEA] transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+              <button onclick="requestAdminAndDelete('${app.id}')" title="Remove App" class="p-2 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             </div>
             <a href="${app.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[#FAF8F5] text-xs font-medium transition-all">
               <span>Open App</span><i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
@@ -462,6 +491,68 @@
       clearSearch();
       renderCategories();
       renderApps();
+    }
+
+    /* ==========================================================
+       ADMIN AUTHENTICATION FLOW
+       ========================================================== */
+    function requestAdminAndOpenAdd() {
+      if (isAdminLoggedIn) {
+        openAppModal();
+      } else {
+        pendingAction = { type: 'add' };
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('authModal').classList.remove('hidden');
+      }
+    }
+
+    function requestAdminAndEdit(id) {
+      const target = apps.find(a => a.id === id);
+      if (!target) return;
+      if (isAdminLoggedIn) {
+        openAppModal(target);
+      } else {
+        pendingAction = { type: 'edit', id: id };
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('authModal').classList.remove('hidden');
+      }
+    }
+
+    function requestAdminAndDelete(id) {
+      if (isAdminLoggedIn) {
+        deleteAppConfirmed(id);
+      } else {
+        pendingAction = { type: 'delete', id: id };
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('authModal').classList.remove('hidden');
+      }
+    }
+
+    function verifyAdmin(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === ADMIN_PASSWORD) {
+        isAdminLoggedIn = true;
+        closeAuthModal();
+        if (pendingAction) {
+          if (pendingAction.type === 'add') {
+            openAppModal();
+          } else if (pendingAction.type === 'edit') {
+            const target = apps.find(a => a.id === pendingAction.id);
+            if (target) openAppModal(target);
+          } else if (pendingAction.type === 'delete') {
+            deleteAppConfirmed(pendingAction.id);
+          }
+          pendingAction = null;
+        }
+      } else {
+        alert('Incorrect Master Password!');
+      }
+    }
+
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
+      pendingAction = null;
     }
 
     function openAppModal(appToEdit = null) {
@@ -519,12 +610,7 @@
       closeAppModal();
     }
 
-    function editApp(id) {
-      const target = apps.find(a => a.id === id);
-      if (target) openAppModal(target);
-    }
-
-    async function deleteApp(id) {
+    async function deleteAppConfirmed(id) {
       if (!confirm('Remove this web app from your portal?')) return;
       if (supabaseClient) {
         const { error } = await supabaseClient.from('web_apps').delete().eq('id', id);
@@ -560,11 +646,3 @@
   </script>
 </body>
 </html>
-```eof
-
-### এখন করণীয় কী?
-1. কোডটি কপি করে আপনার পিসির `index.html` ফাইলে সেভ করুন।
-2. আপনার GitHub রিপোজিটরিতে ফাইলটি আপলোড (Push) করে দিন।
-3. Vercel-এ প্রজেক্টটি অটোমেটিক ডিপ্লয় (Deploy) হয়ে যাবে অথবা রিলোড নিলেই লাইভ হয়ে যাবে। 
-
-এখন আপনি সাইট থেকে যেকোনো সময় নতুন অ্যাপ অ্যাড করলে তা সরাসরি আপনার Supabase ডাটাবেসে চিরস্থায়ীভাবে সেভ হয়ে যাবে!
