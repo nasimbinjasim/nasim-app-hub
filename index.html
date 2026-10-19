@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nasim's Web App Hub — iamnasim.com</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-cream: #FAF8F5;
+      --bg-card: #FFFFFF;
+      --bg-subtle: #F3EFEA;
+      --text-main: #18181B;
+      --text-muted: #52525B;
+      --border-warm: #E6E1DA;
+    }
+
+    body {
+      background-color: var(--bg-cream);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .app-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-warm);
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .app-card:hover {
+      transform: translateY(-4px);
+      border-color: #18181B;
+      box-shadow: 0 14px 30px -10px rgba(24, 24, 27, 0.08);
+    }
+
+    .pill-active {
+      background-color: #18181B !important;
+      color: #FAF8F5 !important;
+      border-color: #18181B !important;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #FAF8F5;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D6D1C7;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #18181B;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-zinc-900 selection:text-amber-50">
+
+  <!-- Top Minimal Header -->
+  <header class="sticky top-0 z-30 backdrop-blur-md bg-[#FAF8F5]/90 border-b border-[#E6E1DA]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-zinc-900 text-[#FAF8F5] flex items-center justify-center font-display font-bold text-lg shadow-sm">
+          N
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display font-bold text-lg sm:text-xl tracking-tight text-zinc-900">iamnasim.com</h1>
+            <span class="inline-flex items-center gap-1 text-[11px] font-mono-code uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EFECE6] text-zinc-700 border border-[#E2DDD5]">
+              <span id="syncDot" class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+              <span id="syncText">Cloud Synced</span>
+            </span>
+          </div>
+          <p class="text-xs text-zinc-500">Personal Web Application Directory & Portal</p>
+        </div>
+      </div>
+
+      <!-- Right Action Controls -->
+      <div class="flex items-center gap-2.5">
+        <button onclick="openManageModal()" title="Backup & Restore JSON" class="p-2.5 rounded-xl bg-[#EFECE6] hover:bg-[#E5E0D8] text-zinc-800 border border-[#E2DDD5] transition-colors">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="openAppModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[#FAF8F5] font-medium text-xs sm:text-sm shadow-sm transition-all">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Add Web App</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+
+    <!-- Search & Category Filter Bar -->
+    <section class="mb-8 space-y-4">
+      <div class="flex flex-col md:flex-row gap-3.5 items-stretch md:items-center justify-between">
+        <div id="categoryFilterBar" class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar"></div>
+
+        <div class="relative w-full md:w-72 shrink-0">
+          <i data-lucide="search" class="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search apps, domain or tags..."
+            oninput="handleSearch(this.value)"
+            class="w-full pl-10 pr-8 py-2.5 bg-white border border-[#E6E1DA] focus:border-zinc-900 rounded-xl text-sm text-zinc-900 placeholder-zinc-400 outline-none transition-colors"
+          />
+          <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cards Grid -->
+    <section id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Populated dynamically via JS -->
+    </section>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 px-4 rounded-2xl border border-dashed border-[#D6D1C7] bg-[#F5F2EC]/50 my-4">
+      <div class="w-12 h-12 rounded-2xl bg-[#EFECE6] text-zinc-700 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="folder-search" class="w-6 h-6"></i>
+      </div>
+      <h3 class="font-display font-bold text-base text-zinc-900 mb-1">No matching web apps found</h3>
+      <p class="text-xs text-zinc-500 max-w-sm mx-auto mb-4">Try clearing your search filter or add a new web application manually.</p>
+      <button onclick="resetFilters()" class="px-4 py-2 rounded-xl bg-zinc-900 text-[#FAF8F5] text-xs font-medium hover:bg-zinc-800 transition-colors">
+        Reset Filters
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-[#E6E1DA] bg-[#F5F2EC]/60 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-zinc-800">Nasim's Web App Portal</span>
+        <span>•</span>
+        <span>Cloud Synced Edition</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="font-mono-code text-[11px] text-zinc-600">iamnasim.com</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Add / Edit Web App Modal -->
+  <div id="appModal" class="fixed inset-0 z-50 hidden bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#FAF8F5] border border-[#E6E1DA] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[#E6E1DA] pb-3.5">
+        <h2 id="modalTitle" class="font-display font-bold text-lg text-zinc-900">Add New Web App</h2>
+        <button onclick="closeAppModal()" class="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#EFECE6]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="appForm" onsubmit="saveApp(event)" class="space-y-4">
+        <input type="hidden" id="appId" />
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Application Title *</label>
+          <input id="appTitle" type="text" required placeholder="e.g., Custom Portal"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm outline-none" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Domain / URL *</label>
+            <input id="appUrl" type="text" required placeholder="e.g., app.iamnasim.com"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm font-mono-code outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Category *</label>
+            <input id="appCategory" type="text" list="categoryList" required placeholder="Select or type..."
+              class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm outline-none" />
+            <datalist id="categoryList">
+              <option value="Health & Family"></option>
+              <option value="Utility & Finance"></option>
+              <option value="NESCO & Engineering"></option>
+              <option value="Cloud & Productivity"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Short Description *</label>
+          <textarea id="appDesc" rows="2" required placeholder="What does this web app do?"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Key Metric / Tag</label>
+          <input id="appMetric" type="text" placeholder="e.g., Live Tool"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E6E1DA] focus:border-zinc-900 text-sm outline-none" />
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E6E1DA]">
+          <button type="button" onclick="closeAppModal()" class="px-4 py-2 rounded-xl border border-[#E6E1DA] bg-white text-zinc-700 text-xs font-medium hover:bg-[#EFECE6]">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-zinc-900 text-[#FAF8F5] text-xs font-medium hover:bg-zinc-800">
+            Save Application
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Backup Modal -->
+  <div id="manageModal" class="fixed inset-0 z-50 hidden bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#FAF8F5] border border-[#E6E1DA] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[#E6E1DA] pb-3">
+        <h3 class="font-display font-bold text-base text-zinc-900">Data Management</h3>
+        <button onclick="closeManageModal()" class="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#EFECE6]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-zinc-600 leading-relaxed">
+        Export your web app list as a JSON file for local backup.
+      </p>
+      <div class="flex flex-col gap-2.5">
+        <button onclick="exportJson()" class="w-full py-2.5 px-4 rounded-xl bg-zinc-900 text-[#FAF8F5] text-xs font-medium flex items-center justify-center gap-2 hover:bg-zinc-800">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Export JSON Backup</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       SUPABASE CONFIGURATION (আপনার প্রোভাইড করা তথ্য সংযুক্ত)
+       ========================================================== */
+    const SUPABASE_URL = 'https://xcalwcbvbymlyycakvqb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_uj4_cNySYz5Kk37I61CWdQ_vL6gat1d';
+
+    let supabaseClient = null;
+    try {
+      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch(e) {
+      console.warn('Supabase initialization error, using local fallback.');
+    }
+
+    let apps = [];
+    let activeCategory = 'All';
+    let searchQuery = '';
+
+    // Core 4 apps fallback
+    const FALLBACK_APPS = [
+      { id: 'app-vaccine', title: 'Vaccine Tracker & Schedule', url: 'https://vaccine.iamnasim.com', domain: 'vaccine.iamnasim.com', category: 'Health & Family', description: 'Immunization timeline, child vaccination reminders, dose history, and family health tracker.', metric: 'EPI & Child Schedule', preview_type: 'vaccine' },
+      { id: 'app-bill', title: 'Electricity Bill Calculator', url: 'https://bill.iamnasim.com', domain: 'bill.iamnasim.com', category: 'Utility & Finance', description: 'Slab-wise tariff breakdown, kWh consumption analyzer, demand charge & VAT estimator.', metric: 'LT-A Residential Tariff', preview_type: 'bill' },
+      { id: 'app-nesco-map', title: 'NESCO GIS & Feeder Map', url: 'https://nesco-map.iamnasim.com', domain: 'nesco-map.iamnasim.com', category: 'NESCO & Engineering', description: 'Interactive substation locator, 33/11kV feeder coverage map, and distribution zone explorer.', metric: 'Rajshahi Zone GIS', preview_type: 'map' },
+      { id: 'app-send', title: 'Quick Send & File Transfer', url: 'https://send.iamnasim.com', domain: 'send.iamnasim.com', category: 'Cloud & Productivity', description: 'Instant cross-device file sharing, encrypted text clipboard, and fast P2P dropzone.', metric: 'Encrypted Direct Share', preview_type: 'send' }
+    ];
+
+    async function loadAppsFromCloud() {
+      if (!supabaseClient) {
+        apps = [...FALLBACK_APPS];
+        document.getElementById('syncText').textContent = 'Local Mode';
+        document.getElementById('syncDot').className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+        renderCategories();
+        renderApps();
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient.from('web_apps').select('*').order('created_at', { ascending: true });
+        if (error) throw error;
+        if (data && data.length > 0) {
+          apps = data;
+        } else {
+          apps = [...FALLBACK_APPS];
+        }
+        document.getElementById('syncText').textContent = 'Cloud Synced';
+        document.getElementById('syncDot').className = 'w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse';
+      } catch (err) {
+        console.error('Error fetching from Supabase:', err);
+        apps = [...FALLBACK_APPS];
+        document.getElementById('syncText').textContent = 'Sync Offline';
+        document.getElementById('syncDot').className = 'w-1.5 h-1.5 rounded-full bg-red-500';
+      }
+      renderCategories();
+      renderApps();
+    }
+
+    function normalizeUrl(raw) {
+      let cleaned = raw.trim();
+      if (!/^https?:\/\//i.test(cleaned)) cleaned = 'https://' + cleaned;
+      return cleaned;
+    }
+
+    function extractDomain(raw) {
+      return raw.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    }
+
+    function renderVisualPreview(app) {
+      const domain = app.domain || extractDomain(app.url);
+      const type = app.preview_type || 'custom';
+      let graphicMarkup = '';
+
+      if (type === 'vaccine') {
+        graphicMarkup = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-mono-code text-zinc-600 bg-[#FAF8F5] px-2.5 py-1.5 rounded-lg border border-[#E6E1DA]">
+              <span>BCG / Pentavalent / MR</span>
+              <span class="px-1.5 py-0.5 rounded bg-zinc-900 text-[#FAF8F5] text-[10px]">Verified</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 pt-0.5">
+              <div class="p-2 rounded-lg bg-[#FAF8F5] border border-[#E6E1DA] text-center"><div class="text-[10px] text-zinc-400">Dose 1</div><div class="text-xs font-bold text-zinc-900">Done</div></div>
+              <div class="p-2 rounded-lg bg-[#FAF8F5] border border-[#E6E1DA] text-center"><div class="text-[10px] text-zinc-400">Dose 2</div><div class="text-xs font-bold text-zinc-900">Done</div></div>
+              <div class="p-2 rounded-lg bg-zinc-900 text-[#FAF8F5] text-center"><div class="text-[10px] text-zinc-400">Next</div><div class="text-xs font-bold">Upcoming</div></div>
+            </div>
+          </div>`;
+      } else if (type === 'bill') {
+        graphicMarkup = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between bg-[#FAF8F5] px-2.5 py-1.5 rounded-lg border border-[#E6E1DA]">
+              <span class="text-[11px] text-zinc-500">Monthly Usage</span>
+              <span class="font-mono-code text-xs font-bold text-zinc-900">345 kWh • ৳2,480</span>
+            </div>
+            <div class="flex items-end gap-1.5 h-11 px-1 pt-1">
+              <div class="flex-1 bg-[#E6E1DA] h-4 rounded-t"></div><div class="flex-1 bg-[#D6D1C7] h-6 rounded-t"></div><div class="flex-1 bg-zinc-400 h-8 rounded-t"></div><div class="flex-1 bg-zinc-900 h-10 rounded-t"></div><div class="flex-1 bg-zinc-600 h-7 rounded-t"></div>
+            </div>
+          </div>`;
+      } else if (type === 'map') {
+        graphicMarkup = `
+          <div class="relative h-[76px] rounded-lg bg-[#FAF8F5] border border-[#E6E1DA] overflow-hidden p-2.5 flex flex-col justify-between">
+            <div class="absolute inset-0 opacity-25" style="background-image: radial-gradient(#18181B 1px, transparent 1px); background-size: 10px 10px;"></div>
+            <div class="relative flex items-center justify-between"><span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-zinc-900 text-[#FAF8F5]">33/11kV Substation</span><span class="text-[10px] font-mono-code text-zinc-600">24.3745° N</span></div>
+            <div class="relative flex items-center gap-2 text-[11px] font-medium text-zinc-800"><span class="w-2 h-2 rounded-full bg-zinc-900 animate-ping"></span><span>Active Feeder Line • Rajshahi</span></div>
+          </div>`;
+      } else if (type === 'send') {
+        graphicMarkup = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between bg-[#FAF8F5] px-2.5 py-1.5 rounded-lg border border-dashed border-zinc-400">
+              <span class="text-[11px] font-mono-code text-zinc-700">Drop files or paste text</span>
+              <span class="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-zinc-900 text-[#FAF8F5]">PIN: 4829</span>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[10px] font-mono-code text-zinc-500"><span>Direct Stream</span><span>48 MB/s • 100%</span></div>
+              <div class="w-full h-1.5 bg-[#E6E1DA] rounded-full overflow-hidden"><div class="w-4/5 h-full bg-zinc-900 rounded-full"></div></div>
+            </div>
+          </div>`;
+      } else {
+        graphicMarkup = `
+          <div class="h-[76px] rounded-lg bg-[#FAF8F5] border border-[#E6E1DA] p-3 flex flex-col justify-between">
+            <div class="flex items-center justify-between"><span class="text-[10px] font-mono-code uppercase tracking-wider text-zinc-500">${app.category}</span><span class="w-2 h-2 rounded-full bg-zinc-900"></span></div>
+            <div class="font-mono-code text-xs font-semibold text-zinc-900 truncate">${app.metric || domain}</div>
+          </div>`;
+      }
+
+      return `
+        <div class="bg-[#F4F1EA] border-b border-[#E6E1DA] p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#D6D1C7]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#D6D1C7]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#D6D1C7]"></span></div>
+            <div class="px-2.5 py-0.5 rounded-md bg-white border border-[#E6E1DA] text-[11px] font-mono-code text-zinc-700 truncate max-w-[200px]">${domain}</div>
+            <span class="text-[10px] font-mono-code text-zinc-400">HTTPS</span>
+          </div>
+          ${graphicMarkup}
+        </div>`;
+    }
+
+    function renderCategories() {
+      const categories = ['All', ...new Set(apps.map(a => a.category))];
+      const bar = document.getElementById('categoryFilterBar');
+      bar.innerHTML = categories.map(cat => `
+        <button onclick="setCategory('${cat.replace(/'/g, "\\'")}')" class="px-3.5 py-2 rounded-xl text-xs font-medium border border-[#E6E1DA] bg-white text-zinc-700 hover:border-zinc-900 whitespace-nowrap transition-all ${cat === activeCategory ? 'pill-active' : ''}">
+          ${cat}
+        </button>`).join('');
+    }
+
+    function renderApps() {
+      const grid = document.getElementById('appsGrid');
+      const empty = document.getElementById('emptyState');
+
+      const filtered = apps.filter(app => {
+        const matchesCategory = activeCategory === 'All' || app.category === activeCategory;
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = !q || app.title.toLowerCase().includes(q) || (app.domain && app.domain.toLowerCase().includes(q)) || app.description.toLowerCase().includes(q) || app.category.toLowerCase().includes(q);
+        return matchesCategory && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        lucide.createIcons();
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = filtered.map(app => `
+        <article class="app-card rounded-2xl overflow-hidden flex flex-col justify-between">
+          <div>
+            ${renderVisualPreview(app)}
+            <div class="p-5">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-[11px] font-medium px-2.5 py-0.5 rounded-md bg-[#F3EFEA] text-zinc-700 border border-[#E6E1DA]">${app.category}</span>
+                <span class="text-[11px] font-mono-code font-semibold px-2 py-0.5 rounded-md bg-zinc-900 text-[#FAF8F5]">★ Core</span>
+              </div>
+              <h3 class="font-display font-bold text-base text-zinc-900 leading-snug mb-1.5">${app.title}</h3>
+              <p class="text-xs text-zinc-600 leading-relaxed line-clamp-2 mb-4">${app.description}</p>
+            </div>
+          </div>
+          <div class="px-5 pb-5 pt-3 border-t border-[#F3EFEA] flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1">
+              <button onclick="editApp('${app.id}')" title="Edit App" class="p-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-[#F3EFEA] transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+              <button onclick="deleteApp('${app.id}')" title="Remove App" class="p-2 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+            <a href="${app.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-[#FAF8F5] text-xs font-medium transition-all">
+              <span>Open App</span><i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+        </article>`).join('');
+
+      lucide.createIcons();
+    }
+
+    function setCategory(cat) {
+      activeCategory = cat;
+      renderCategories();
+      renderApps();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.trim();
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (searchQuery.length > 0) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+      renderApps();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      handleSearch('');
+    }
+
+    function resetFilters() {
+      activeCategory = 'All';
+      clearSearch();
+      renderCategories();
+      renderApps();
+    }
+
+    function openAppModal(appToEdit = null) {
+      const modal = document.getElementById('appModal');
+      const titleEl = document.getElementById('modalTitle');
+      if (appToEdit) {
+        titleEl.textContent = 'Edit Web Application';
+        document.getElementById('appId').value = appToEdit.id;
+        document.getElementById('appTitle').value = appToEdit.title;
+        document.getElementById('appUrl').value = appToEdit.domain || appToEdit.url;
+        document.getElementById('appCategory').value = appToEdit.category;
+        document.getElementById('appDesc').value = appToEdit.description;
+        document.getElementById('appMetric').value = appToEdit.metric || '';
+      } else {
+        titleEl.textContent = 'Add New Web App';
+        document.getElementById('appForm').reset();
+        document.getElementById('appId').value = '';
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeAppModal() {
+      document.getElementById('appModal').classList.add('hidden');
+    }
+
+    async function saveApp(e) {
+      e.preventDefault();
+      const id = document.getElementById('appId').value;
+      const title = document.getElementById('appTitle').value.trim();
+      const rawUrl = document.getElementById('appUrl').value.trim();
+      const category = document.getElementById('appCategory').value.trim();
+      const description = document.getElementById('appDesc').value.trim();
+      const metric = document.getElementById('appMetric').value.trim();
+
+      const url = normalizeUrl(rawUrl);
+      const domain = extractDomain(rawUrl);
+      const appId = id || ('app-' + Date.now());
+
+      const payload = { id: appId, title, url, domain, category, description, metric: metric || domain, preview_type: 'custom' };
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('web_apps').upsert(payload);
+        if (error) {
+          alert('Failed to save to Supabase: ' + error.message);
+          return;
+        }
+        await loadAppsFromCloud();
+      } else {
+        const idx = apps.findIndex(a => a.id === appId);
+        if (idx > -1) apps[idx] = payload;
+        else apps.unshift(payload);
+        renderCategories();
+        renderApps();
+      }
+      closeAppModal();
+    }
+
+    function editApp(id) {
+      const target = apps.find(a => a.id === id);
+      if (target) openAppModal(target);
+    }
+
+    async function deleteApp(id) {
+      if (!confirm('Remove this web app from your portal?')) return;
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('web_apps').delete().eq('id', id);
+        if (error) {
+          alert('Failed to delete: ' + error.message);
+          return;
+        }
+        await loadAppsFromCloud();
+      } else {
+        apps = apps.filter(a => a.id !== id);
+        renderCategories();
+        renderApps();
+      }
+    }
+
+    function openManageModal() {
+      document.getElementById('manageModal').classList.remove('hidden');
+    }
+    function closeManageModal() {
+      document.getElementById('manageModal').classList.add('hidden');
+    }
+    function exportJson() {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(apps, null, 2));
+      const a = document.createElement('a');
+      a.href = dataStr;
+      a.download = 'iamnasim-webapps-backup.json';
+      a.click();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAppsFromCloud();
+    });
+  </script>
+</body>
+</html>
+```eof
+
+### এখন করণীয় কী?
+1. কোডটি কপি করে আপনার পিসির `index.html` ফাইলে সেভ করুন।
+2. আপনার GitHub রিপোজিটরিতে ফাইলটি আপলোড (Push) করে দিন।
+3. Vercel-এ প্রজেক্টটি অটোমেটিক ডিপ্লয় (Deploy) হয়ে যাবে অথবা রিলোড নিলেই লাইভ হয়ে যাবে। 
+
+এখন আপনি সাইট থেকে যেকোনো সময় নতুন অ্যাপ অ্যাড করলে তা সরাসরি আপনার Supabase ডাটাবেসে চিরস্থায়ীভাবে সেভ হয়ে যাবে!
